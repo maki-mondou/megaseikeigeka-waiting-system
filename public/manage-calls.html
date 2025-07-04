@@ -38,6 +38,10 @@
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
       text-align: center;
     }
+    
+    .call-box.doctor1 { border-top: 8px solid #007bff; }
+    .call-box.doctor2 { border-top: 8px solid #0056b3; }
+    .call-box.rehab   { border-top: 8px solid #28a745; }
 
     .call-box .label {
       font-size: 1.2em;
@@ -56,6 +60,44 @@
       box-shadow: 0 0 8px rgba(0,0,0,0.1);
       margin-bottom: 1rem;
       padding: 10px;
+      position: relative;
+      padding-left: 16px;
+    }
+
+    .waiting-area.doctor1::before,
+    .call-box.doctor1.waiting-area::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 8px;
+      height: 100%;
+      background-color: #007bff;
+      border-radius: 10px 0 0 10px;
+    }
+
+    .waiting-area.doctor2::before,
+    .call-box.doctor2.waiting-area::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 8px;
+      height: 100%;
+      background-color: #0056b3;
+      border-radius: 10px 0 0 10px;
+    }
+
+    .waiting-area.rehab::before,
+    .call-box.rehab.waiting-area::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 8px;
+      height: 100%;
+      background-color: #28a745;
+      border-radius: 10px 0 0 10px;
     }
 
     .waiting-area h2 {
@@ -171,31 +213,31 @@
 <body>
   <div class="left-panel">
     <div class="call-header">
-      <div class="call-box waiting-area">
+      <div class="call-box waiting-area doctor1">
         <div class="label">🩺診察①</div>
         <div class="waiting-list" id="doctor1-called"></div>
       </div>
-      <div class="call-box waiting-area">
+      <div class="call-box waiting-area doctor2">
         <div class="label">🩺診察②</div>
         <div class="waiting-list" id="doctor2-called"></div>
       </div>
-      <div class="call-box waiting-area">
+      <div class="call-box waiting-area rehab">
         <div class="label">🦴リハビリ</div>
         <div class="waiting-list" id="rehab-called"></div>
       </div>
     </div>
 
-    <div class="waiting-area">
+    <div class="waiting-area doctor1">
       <h2>🩺診察① お待ちの方</h2>
       <div class="waiting-list" id="doctor1-waiting"></div>
     </div>
 
-    <div class="waiting-area">
+    <div class="waiting-area doctor2">
       <h2>🩺診察② お待ちの方</h2>
       <div class="waiting-list" id="doctor2-waiting"></div>
     </div>
 
-    <div class="waiting-area">
+    <div class="waiting-area rehab">
       <h2>🦴リハビリ お待ちの方</h2>
       <div class="waiting-list" id="rehab-waiting"></div>
     </div>
@@ -247,6 +289,9 @@
 
     allIds.forEach(id => lists[id] = document.getElementById(id));
 
+    // --- ドラッグ中かどうかを管理するフラグ
+    let isDragging = false;
+
     const initialData = {
       // 'doctor1-waiting': ['013', '015', '016'],
       // 'doctor2-waiting': ['020', '022'],
@@ -289,7 +334,9 @@
         sort: true,
         ghostClass: 'sortable-ghost',   // ← optional: ドラッグ中の見た目変化
         dragClass: 'sortable-drag',     // ← optional: ドラッグ中の見た目変化
-        onEnd: () => saveToAPI(),
+        // onEnd: () => saveToAPI(),
+        onStart: () => { isDragging = true; },
+        onEnd: () => { isDragging = false; saveToAPI(); },
         onAdd: function (evt) {
           if (!evt.item || !evt.to) return;
 
@@ -507,6 +554,7 @@
 
 
     async function fetchLatestWaitingData() {
+      if (isDragging) return; // ドラッグ中は更新しない
       try {
         const res = await fetch('/api/waiting');
         const latest = await res.json();
