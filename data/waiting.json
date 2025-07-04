@@ -1,0 +1,26 @@
+{
+  "doctor1-waiting": [
+    "!015",
+    "016"
+  ],
+  "doctor2-waiting": [
+    "020",
+    "022"
+  ],
+  "rehab-waiting": [
+    "006",
+    "008"
+  ],
+  "doctor1-called": [],
+  "doctor2-called": [
+    "021"
+  ],
+  "rehab-called": [
+    "007"
+  ],
+  "completed-list": [
+    "014",
+    "013",
+    "!015"
+  ]
+}

@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+  <title>呼出番号管理</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f8ff;
+      padding: 1.5rem;
+      max-width: 1600px;
+      margin: auto;
+      display: flex;
+      gap: 2rem;
+    }
+
+    .left-panel {
+      flex: 1;
+    }
+
+    .right-panel {
+      width: 320px;
+    }
+
+    .call-header {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 20px;
+    }
+
+    .call-box {
+      background-color: white;
+      border-radius: 15px;
+      padding: 5px;
+      width: 30%;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .call-box .label {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .call-box .waiting-list {
+      justify-content: center;
+      min-height: 60px;
+    }
+
+    .waiting-area {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+      margin-bottom: 1rem;
+      padding: 10px;
+    }
+
+    .waiting-area h2 {
+      font-size: 1.2em;
+      margin-bottom: 10px;
+    }
+
+    .waiting-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      min-height: 60px;
+    }
+
+    .waiting-number {
+      background-color: #e0f0ff;
+      border: 2px solid #007acc;
+      color: #007acc;
+      font-weight: bold;
+      font-size: 2em;
+      padding: 12px 0;
+      border-radius: 10px;
+      cursor: move;
+      user-select: none;
+      width: 80px;
+      text-align: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .waiting-number.red {
+      background-color: #ffe5e5;
+      border-color: #cc6666;
+      color: #cc0000;
+    }
+
+    .context-menu {
+      position: absolute;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      z-index: 1000;
+      padding: 5px 10px;
+      font-size: 0.9em;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      cursor: pointer;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      font-size: 1.1em;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 1.1em;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    button:active {
+      transform: scale(0.97);
+      background-color: #0056b3;
+    }
+
+    .settings-box {
+      background-color: #ffffff;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      margin-top: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .form-group label {
+      font-size: 1em;
+      white-space: nowrap;
+    }
+
+    select {
+      padding: 8px 12px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      transform: scale(1.4);
+      margin-left: 5px;
+    }
+
+    .inactive-section {
+      opacity: 0.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="left-panel">
+    <div class="call-header">
+      <div class="call-box waiting-area">
+        <div class="label">🩺診察①</div>
+        <div class="waiting-list" id="doctor1-called"></div>
+      </div>
+      <div class="call-box waiting-area">
+        <div class="label">🩺診察②</div>
+        <div class="waiting-list" id="doctor2-called"></div>
+      </div>
+      <div class="call-box waiting-area">
+        <div class="label">🦴リハビリ</div>
+        <div class="waiting-list" id="rehab-called"></div>
+      </div>
+    </div>
+
+    <div class="waiting-area">
+      <h2>🩺診察① お待ちの方</h2>
+      <div class="waiting-list" id="doctor1-waiting"></div>
+    </div>
+
+    <div class="waiting-area">
+      <h2>🩺診察② お待ちの方</h2>
+      <div class="waiting-list" id="doctor2-waiting"></div>
+    </div>
+
+    <div class="waiting-area">
+      <h2>🦴リハビリ お待ちの方</h2>
+      <div class="waiting-list" id="rehab-waiting"></div>
+    </div>
+
+    <div class="waiting-area">
+      <h2>完了番号（保持エリア）</h2>
+      <div class="waiting-list" id="completed-list"></div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <input type="text" id="number-input" placeholder="番号を入力" inputmode="numeric" pattern="[0-9]*" maxlength="3">
+    <button onclick="addNumber('doctor1-waiting')">診察①に追加</button>
+    <button onclick="addNumber('doctor2-waiting')">診察②に追加</button>
+    <button onclick="addNumber('rehab-waiting')">リハビリに追加</button>
+    
+    <button onclick="saveToAPI()">現在の状態を保存</button>
+
+    <div class="settings-box">
+      <div class="form-group">
+        <label for="display-mode">表示モード：</label>
+        <select id="display-mode" onchange="updateDisplayFlag()">
+          <option value="true">診察①＋②</option>
+          <option value="false">診察①のみ</option>
+        </select>
+      </div>
+    
+      <div class="form-group checkbox-group">
+        <label for="emergency-switch">緊急処置対応中：</label>
+        <input type="checkbox" id="emergency-switch" onchange="toggleEmergency()" />
+      </div>
+    </div>
+
+    <div class="settings-box">
+      <textarea id="notice-input" placeholder="お知らせを入力してください" rows="4" style="width: 100%; font-size: 1em; margin-bottom: 10px;"></textarea>
+      <button onclick="saveNotice()">お知らせを更新</button>
+    </div>
+  </div>
+  
+  
+
+  <script>
+    const lists = {};
+    const allIds = [
+      'doctor1-waiting', 'doctor2-waiting', 'rehab-waiting',
+      'doctor1-called', 'doctor2-called', 'rehab-called',
+      'completed-list'
+    ];
+
+    allIds.forEach(id => lists[id] = document.getElementById(id));
+
+    const initialData = {
+      // 'doctor1-waiting': ['013', '015', '016'],
+      // 'doctor2-waiting': ['020', '022'],
+      // 'rehab-waiting': ['006', '008'],
+      // 'doctor1-called': ['014'],
+      // 'doctor2-called': ['021'],
+      // 'rehab-called': ['007'],
+      // 'completed-list': []
+      'doctor1-waiting': [],
+      'doctor2-waiting': [],
+      'rehab-waiting': [],
+      'doctor1-called': [],
+      'doctor2-called': [],
+      'rehab-called': [],
+      'completed-list': []
+    };
+
+    function renderList(container, list, id) {
+      container.innerHTML = '';
+      list.forEach(num => {
+        const card = createCard(num.replace(/^!/, ''), container); // ← !を除いた表示
+        if (!card) return;
+
+        if (num.startsWith('!')) {
+          card.classList.add('red'); // ← 赤くする
+        }
+        container.appendChild(card);
+      });
+    }
+
+    allIds.forEach(id => {
+      Sortable.create(lists[id], {
+        group: {
+          name: 'shared',
+          pull: true,
+          put: true,
+          clone: false
+        },
+        animation: 150,
+        sort: true,
+        ghostClass: 'sortable-ghost',   // ← optional: ドラッグ中の見た目変化
+        dragClass: 'sortable-drag',     // ← optional: ドラッグ中の見た目変化
+        onEnd: () => saveToAPI(),
+        onAdd: function (evt) {
+          if (!evt.item || !evt.to) return;
+
+          const addedItem = evt.item;
+          const parent = evt.to;
+
+          const existing = Array.from(parent.children).filter(el => el !== addedItem && el.textContent === addedItem.textContent);
+          if (existing.length > 0) {
+            addedItem.remove();
+          }
+          saveToAPI();
+        }
+      });
+    });
+
+    function createCard(num, container) {
+      const cleanNum = num.replace(/^!/, ''); // !を除去して比較用の番号を作成
+
+      // --- 重複チェック（container内に同じ番号があるか）
+      const exists = Array.from(container.children).some(card => card.textContent === cleanNum);
+      if (exists) {
+        console.warn(`番号 ${cleanNum} は既に存在します`);
+        return null;
+      }
+
+      // --- カードを作成
+      const el = document.createElement('div');
+      el.className = 'waiting-number';
+      el.textContent = cleanNum;
+
+      el.addEventListener('dblclick', () => {
+        el.classList.toggle('red');
+        saveToAPI();
+      });
+
+      el.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        const menu = document.createElement('div');
+        menu.className = 'context-menu';
+        menu.textContent = '削除';
+        document.body.appendChild(menu);
+        menu.style.top = `${e.pageY}px`;
+        menu.style.left = `${e.pageX}px`;
+
+        const removeMenu = () => {
+          if (document.body.contains(menu)) document.body.removeChild(menu);
+          document.removeEventListener('click', removeMenu);
+        };
+
+        menu.addEventListener('click', () => {
+          el.remove();
+          removeMenu();
+          saveToAPI();
+        });
+
+        setTimeout(() => document.addEventListener('click', removeMenu), 0);
+      });
+
+      return el;
+    }
+
+    allIds.forEach(id => {
+      const container = lists[id];
+      renderList(container, initialData[id], id);
+    });
+
+    function getDragAfterElement(container, x) {
+      const draggableElements = [...container.querySelectorAll('.waiting-number:not(.dragging)')];
+
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = x - box.left - box.width / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    const numberInput = document.getElementById('number-input');
+    numberInput.addEventListener('input', () => {
+      numberInput.value = numberInput.value.replace(/[^0-9]/g, '');
+    });
+
+    function addNumber(targetId) {
+      const num = numberInput.value.trim();
+      if (num && lists[targetId]) {
+        const allCards = document.querySelectorAll('.waiting-number');
+        const exists = Array.from(allCards).some(c => c.textContent === num);
+        if (exists) {
+          alert("同じ番号がすでに存在します。");
+          return;
+        }
+        const el = createCard(num);
+        lists[targetId].appendChild(el);
+        numberInput.value = '';
+        saveToAPI();
+      }
+    }
+    
+    function saveToAPI() {
+      const data = {};
+      allIds.forEach(id => {
+        data[id] = Array.from(lists[id].children).map(el => {
+          return el.classList.contains('red') ? `!${el.textContent}` : el.textContent;
+        });
+      });
+
+      fetch('/api/waiting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(res => res.json())
+        .then(data => {
+          console.log('保存成功', data);
+          // alert("データを保存しました！");
+        }).catch(err => {
+          console.error('保存失敗', err);
+          alert("保存に失敗しました");
+        });
+    }
+
+    function toggleEmergency() {
+      const isEmergency = document.getElementById('emergency-switch').checked;
+      fetch('/api/emergency', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emergency: isEmergency })
+      });
+      saveToAPI();
+    }
+
+    function updateDisplayFlag() {
+      const mode = document.getElementById('display-mode').value === 'true';
+      fetch('/api/display-flag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doctor2: mode })
+      }).then(res => res.json())
+        .then(data => {
+          console.log('表示フラグ更新:', data);
+        });
+    }
+
+    function saveNotice() {
+      const text = document.getElementById('notice-input').value;
+      fetch('/api/notice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notice: text })
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("お知らせ更新成功:", data);
+      })
+      .catch(err => {
+        console.error("お知らせ更新失敗:", err);
+        alert("お知らせの保存に失敗しました");
+      });
+    }
+
+    function updateDisplayFlag() {
+      const mode = document.getElementById('display-mode').value === 'true'; // true = ①＋②
+
+      fetch('/api/display-flag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doctor2: mode })
+      }).then(res => res.json())
+        .then(data => {
+          console.log('表示フラグ更新:', data);
+          
+          // 👇 表示モードに応じたUI制御処理
+          handleDoctor2Mode(mode);
+        });
+
+      // 🔽 診察②ボタンの有効・無効切替処理追加！
+      const doctor2Button = document.querySelector('button[onclick*="doctor2-waiting"]');
+      if (mode) {
+        doctor2Button.disabled = false;
+        doctor2Button.style.opacity = "1";
+      } else {
+        doctor2Button.disabled = true;
+        doctor2Button.style.opacity = "0.5";
+      }
+    }
+
+    function handleDoctor2Mode(showDoctor2) {
+      const doctor2Waiting = document.getElementById('doctor2-waiting');
+      const doctor2Called = document.getElementById('doctor2-called');
+
+      const doctor2WaitingArea = doctor2Waiting.closest('.waiting-area');
+      const doctor2CalledBox = doctor2Called.closest('.call-box');
+
+      if (!showDoctor2) {
+        // 診察②の番号を完了リストへ移動
+        [...doctor2Waiting.children, ...doctor2Called.children].forEach(card => {
+          lists['completed-list'].appendChild(card);
+        });
+
+        // 完全に非表示
+        doctor2WaitingArea.style.display = 'none';
+        doctor2CalledBox.style.display = 'none';
+
+      } else {
+        // 表示を元に戻す
+        doctor2WaitingArea.style.display = '';
+        doctor2CalledBox.style.display = '';
+      }
+
+      saveToAPI();
+    }
+
+
+
+    async function fetchLatestWaitingData() {
+      try {
+        const res = await fetch('/api/waiting');
+        const latest = await res.json();
+
+        allIds.forEach(id => {
+          const container = lists[id];
+          renderList(container, latest[id] || [], id);
+        });
+      } catch (err) {
+        console.error("最新データ取得に失敗", err);
+      }
+    }
+
+    // ★ 追加！定期的に最新状態を取得してUIに反映
+    setInterval(fetchLatestWaitingData, 3000); // 3秒おきに取得（頻度は調整可）
+
+  </script>
+</body>
+</html>

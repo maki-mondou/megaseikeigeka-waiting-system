@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>診察① 先生画面</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .current-call {
+      font-size: 6rem;
+      font-weight: bold;
+      color: #007bff;
+      margin: 2rem 0;
+      cursor: pointer;
+    }
+
+    .waiting-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    .waiting-number {
+      background-color: #e0f0ff;
+      border: 2px solid #007acc;
+      border-radius: 10px;
+      padding: 1rem 2rem;
+      font-size: 2rem;
+      font-weight: bold;
+      color: #007acc;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>診察① 呼出中</h1>
+
+  <div id="current-call" class="current-call">--</div>
+
+  <h2>待機中の番号</h2>
+  <div id="waiting-list" class="waiting-list"></div>
+
+  <script>
+  async function fetchData() {
+    const res = await fetch('/api/waiting');
+    const data = await res.json();
+
+    const currentRaw = data['doctor1-called'][0] || '--';
+    const currentCall = document.getElementById('current-call');
+
+    const isRed = currentRaw.startsWith('!');
+    const current = currentRaw.replace(/^!/, '');
+
+    currentCall.textContent = current;
+    currentCall.style.color = isRed ? 'red' : '#007bff'; // ← 色切り替え！
+
+    currentCall.dataset.original = currentRaw;
+
+    const waiting = data['doctor1-waiting'] || [];
+    const waitingList = document.getElementById('waiting-list');
+    waitingList.innerHTML = '';
+
+    waiting.forEach(num => {
+      const span = document.createElement('div');
+      span.className = 'waiting-number';
+      span.textContent = num.replace(/^!/, '');
+
+      if (num.startsWith('!')) {
+        span.style.color = 'red';
+      }
+
+      waitingList.appendChild(span);
+    });
+  }
+
+    async function completeCurrentCall() {
+      const currentCall = document.getElementById('current-call');
+      const num = currentCall.dataset.original;
+      if (num === '--') return;
+
+      console.log("完了処理：クリックされた番号", num); // ← 追加
+
+      // 🔒 連打防止（1秒間クリック無効に）
+      currentCall.style.pointerEvents = 'none';
+      setTimeout(() => {
+        currentCall.style.pointerEvents = '';
+      }, 1000);
+
+      // 画面から即時削除（非表示にする）
+      currentCall.textContent = '--';
+
+      // 完了処理をサーバーに通知
+      const res = await fetch('/api/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doctor: 'doctor1', number: num })
+      });
+
+      // 念のためリロード（呼出中や待機中が変わっているかもしれないので）
+      if (res.ok) {
+        await fetchData();
+      } else {
+        alert("完了処理に失敗しました");
+        currentCall.textContent = num; // 戻す
+      }
+    }
+
+    // イベント登録
+    document.getElementById('current-call').addEventListener('click', completeCurrentCall);
+
+    // 初回読み込み & 定期更新
+    fetchData();
+    setInterval(fetchData, 5000); // 5秒ごとに更新
+  </script>
+</body>
+</html>
